@@ -1,6 +1,15 @@
 import argparse
 from dataclasses import dataclass
+import torch
 
+def state_dict_equal(sd1, sd2):
+    if sd1.keys() != sd2.keys():
+        return False
+    return all(torch.equal(sd1[k], sd2[k]) for k in sd1)
+
+
+def state_dict_not_equal(sd1, sd2):
+    return not state_dict_equal(sd1, sd2)
 
 @dataclass
 class DDQNConfig:
@@ -24,9 +33,12 @@ class DDQNConfig:
     target_network_countdown: int = 2500  # Steps before switching to target network
     lr_factor = 2
     lr_lower = 0.0001
-    save_model_every=10
-    save_after=300
+    save_after=10
+    save_rate=20
     save_before=1000
+    loss_threshold = 10
+    current_episode = 1
+    path = "models/CartPole-v180.pth"
 
 
 

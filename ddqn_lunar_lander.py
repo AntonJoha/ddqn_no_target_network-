@@ -1,14 +1,15 @@
 import random
 from collections import deque
-
+import dataclasses
 import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
+import json
 import torch.optim as optim
 
 from tgelu import TGeLU
-from util import DDQNConfig, parse_args
+from util import *
 
 MAX_SEED_VALUE = 2**32 - 1
 
@@ -72,6 +73,11 @@ class DDQNAgent:
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=config.lr)
         self.loss_fn = nn.MSELoss()
         self.config = config
+        assert state_dict_equal(self.policy_net.state_dict() ,self.target_net.state_dict())
+        if config.path is not None:
+            self.policy_net.load_state_dict(torch.load(config.path))
+            print("Weights loaded")
+            assert not state_dict_equal(self.policy_net.state_dict(),self.target_net.state_dict())
 
     def act(self, state: np.ndarray, epsilon: float) -> int:
         if random.random() < epsilon:
@@ -116,8 +122,8 @@ class DDQNAgent:
         return float(loss.item())
 
     def update_loss(self, episode):
-        lr = (self.config.lr - self.config.lr_lower)(1-(episode/self.config.episodes))**self.config.lr_factor + self.config.lr_lower
-        for param_group in optimizer.param_groups:
+        lr = (self.config.lr - self.config.lr_lower)*(1-(episode/self.config.episodes))**self.config.lr_factor + self.config.lr_lower
+        for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
 
         
@@ -147,6 +153,9 @@ def train(config: DDQNConfig):
     action_dim = env.action_space.n
 
     agent = DDQNAgent(state_dim, action_dim, config, device)
+
+
+        
     replay_buffer = ReplayBuffer(config.replay_size)
     epsilon = config.epsilon_start
     episode_rewards = []
@@ -155,7 +164,7 @@ def train(config: DDQNConfig):
     
     stats = []
     loss_count = 0
-    for episode in range(1, config.episodes + 1):
+    for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
         loss_list = []
@@ -168,8 +177,7 @@ def train(config: DDQNConfig):
             done = terminated or truncated
             replay_buffer.add(state, action, reward, next_state, done)
             state = next_state
-            if reward == -1:
-                print("MINUS ONE REWARD")
+            
             reward_list.append(reward)
 
             if len(replay_buffer) >= config.min_replay_size:
@@ -199,14 +207,33 @@ def train(config: DDQNConfig):
         if np.mean(loss_list) < 0.5:
             loss_count += 1
             if loss_count >= config.loss_threshold:
-                agent.update_loss()
+                agent.update_loss(episode)
         else:
             loss_count = 0
+        if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
+            save(agent, episode, config)
             
             
 
     env.close()
     return agent, device, stats
+
+
+def save(agent, episode, config):
+    filename = f"models/{config.env_id}{episode}"
+
+    to_save = dataclasses.asdict(config)
+    to_save["current_episode"] = episode
+    to_save["save_after"] = 0
+    to_save["save_rate"] = 0
+    to_save["save_before"] = 0
+    to_save["target_network_countdown"] = 0
+    to_save["path"] = filename + ".pth"
+    print(to_save)
+    with open(filename + ".json", "w") as f:
+        json.dump(to_save,f, indent=2)
+    torch.save(agent.policy_net.state_dict(), to_save["path"])
+
 
 
 def evaluate(agent: DDQNAgent, config: DDQNConfig, device: torch.device):
