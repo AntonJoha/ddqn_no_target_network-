@@ -64,7 +64,7 @@ class DDQNConfig:
     seed: int = 42
     hidden_dim: int = 128
     eval_episodes: int = 5
-    eval_seed_offset: int = 1_000_000
+    eval_seed_offset: int = 100_000
     render: bool = False
 
 
@@ -145,7 +145,7 @@ def train(config: DDQNConfig):
     episode_rewards = []
 
     for episode in range(1, config.episodes + 1):
-        state, _ = env.reset(seed=config.seed + episode)
+        state, _ = env.reset(seed=(config.seed + episode) % (2**32 - 1))
         episode_reward = 0.0
 
         for _ in range(config.max_steps):
@@ -180,7 +180,8 @@ def evaluate(agent: DDQNAgent, config: DDQNConfig, device: torch.device):
     env = gym.make(config.env_id, render_mode="human" if config.render else None)
     rewards = []
     for episode in range(1, config.eval_episodes + 1):
-        state, _ = env.reset(seed=config.seed + config.eval_seed_offset + episode)
+        eval_seed = (config.seed + config.eval_seed_offset + episode) % (2**32 - 1)
+        state, _ = env.reset(seed=eval_seed)
         total_reward = 0.0
         for _ in range(config.max_steps):
             state_t = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
@@ -214,7 +215,7 @@ def parse_args() -> DDQNConfig:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--eval-episodes", type=int, default=5)
-    parser.add_argument("--eval-seed-offset", type=int, default=1_000_000)
+    parser.add_argument("--eval-seed-offset", type=int, default=100_000)
     parser.add_argument("--render", action="store_true")
     args = parser.parse_args()
     return DDQNConfig(
