@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+MAX_SEED_VALUE = 2**32 - 1
+
 
 class QNetwork(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 128):
@@ -71,6 +73,7 @@ class DDQNConfig:
 class DDQNAgent:
     def __init__(self, state_dim: int, action_dim: int, config: DDQNConfig, device: torch.device):
         self.device = device
+        self.action_dim = action_dim
         self.gamma = config.gamma
         self.batch_size = config.batch_size
         self.target_update_freq = config.target_update_freq
@@ -84,9 +87,9 @@ class DDQNAgent:
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=config.lr)
         self.loss_fn = nn.MSELoss()
 
-    def act(self, state: np.ndarray, epsilon: float, action_dim: int) -> int:
+    def act(self, state: np.ndarray, epsilon: float) -> int:
         if random.random() < epsilon:
-            return random.randrange(action_dim)
+            return random.randrange(self.action_dim)
         state_t = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         with torch.no_grad():
             q_values = self.policy_net(state_t)
@@ -145,11 +148,11 @@ def train(config: DDQNConfig):
     episode_rewards = []
 
     for episode in range(1, config.episodes + 1):
-        state, _ = env.reset(seed=(config.seed + episode) % (2**32 - 1))
+        state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
         episode_reward = 0.0
 
         for _ in range(config.max_steps):
-            action = agent.act(state, epsilon, action_dim)
+            action = agent.act(state, epsilon)
             next_state, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
             replay_buffer.add(state, action, reward, next_state, done)
@@ -180,7 +183,7 @@ def evaluate(agent: DDQNAgent, config: DDQNConfig, device: torch.device):
     env = gym.make(config.env_id, render_mode="human" if config.render else None)
     rewards = []
     for episode in range(1, config.eval_episodes + 1):
-        eval_seed = (config.seed + config.eval_seed_offset + episode) % (2**32 - 1)
+        eval_seed = (config.seed + config.eval_seed_offset + episode) % MAX_SEED_VALUE
         state, _ = env.reset(seed=eval_seed)
         total_reward = 0.0
         for _ in range(config.max_steps):
