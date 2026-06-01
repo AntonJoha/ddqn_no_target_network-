@@ -39,7 +39,7 @@ class ReplayBuffer:
 
     def sample(self, batch_size: int):
         batch = random.sample(self.buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
+        states, actions, rewards, next_states, dones = zip(*batch, strict=True)
         return (
             np.array(states, dtype=np.float32),
             np.array(actions, dtype=np.int64),
@@ -71,6 +71,7 @@ class DDQNAgent:
 
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=config.lr)
         self.loss_fn = nn.MSELoss()
+        self.config = config
 
     def act(self, state: np.ndarray, epsilon: float) -> int:
         if random.random() < epsilon:
@@ -114,6 +115,12 @@ class DDQNAgent:
 
         return float(loss.item())
 
+    def update_loss(self, episode):
+        lr = (self.config.lr - self.config.lr_lower)(1-(episode/self.config.episodes))**self.config.lr_factor + self.config.lr_lower
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+        
     def update_target_network_countdown(self):
         if self.use_target_network:
             self.target_network_countdown -= 1
@@ -143,48 +150,76 @@ def train(config: DDQNConfig):
     replay_buffer = ReplayBuffer(config.replay_size)
     epsilon = config.epsilon_start
     episode_rewards = []
-
+    number_of_steps = []
+    episode_loss = []
+    
+    stats = []
+    loss_count = 0
     for episode in range(1, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
-        episode_reward = 0.0
 
+        loss_list = []
+        reward_list = []
+        count = 0
         for _ in range(config.max_steps):
+            count += 1
             action = agent.act(state, epsilon)
             next_state, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
             replay_buffer.add(state, action, reward, next_state, done)
             state = next_state
-            episode_reward += reward
+            if reward == -1:
+                print("MINUS ONE REWARD")
+            reward_list.append(reward)
 
             if len(replay_buffer) >= config.min_replay_size:
-                agent.train_step(replay_buffer)
+                loss = agent.train_step(replay_buffer)
+                loss_list.append(loss)
 
             if done:
                 break
-
+                
+        number_of_steps.append(count)
         epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
-        episode_rewards.append(episode_reward)
-        avg_last_10 = np.mean(episode_rewards[-10:])
+        episode_rewards.append(reward_list)
+        episode_loss.append(loss_list)
+        #avg_last_10 = np.mean(episode_rewards[-10:])
         print(
             f"Episode {episode:4d}/{config.episodes} | "
-            f"Reward: {episode_reward:8.2f} | "
-            f"Avg(10): {avg_last_10:8.2f} | "
+            #f"Reward: {reward_list:8.2f} | "
+            f"Reward: {sum(reward_list)} | "
+
+            #f"Avg(10): {avg_last_10:8.2f} | "
             f"Epsilon: {epsilon:6.3f}"
         )
-        agent.update_target_network_countdown() ## Count down on the target network. 
+        agent.update_target_network_countdown() ## Count down on the target network.
+        if episode % 5 == 0:
+            print("EVAL")
+            stats.append([episode, evaluate(agent, config, device)])
+        if np.mean(loss_list) < 0.5:
+            loss_count += 1
+            if loss_count >= config.loss_threshold:
+                agent.update_loss()
+        else:
+            loss_count = 0
+            
+            
 
     env.close()
-    return agent, device
+    return agent, device, stats
 
 
 def evaluate(agent: DDQNAgent, config: DDQNConfig, device: torch.device):
-    env = gym.make(config.env_id, render_mode="human" if config.render else None)
+    env = gym.make(config.env_id)
     rewards = []
+    steps = []
     for episode in range(1, config.eval_episodes + 1):
         eval_seed = (config.seed + config.eval_seed_offset + episode) % MAX_SEED_VALUE
         state, _ = env.reset(seed=eval_seed)
         total_reward = 0.0
+        step_count = 0
         for _ in range(config.max_steps):
+            step_count += 1
             state_t = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
             with torch.no_grad():
                 action = int(agent.policy_net(state_t).argmax(dim=1).item())
@@ -194,14 +229,20 @@ def evaluate(agent: DDQNAgent, config: DDQNConfig, device: torch.device):
             if terminated or truncated:
                 break
         rewards.append(total_reward)
-        print(f"[Eval] Episode {episode}: {total_reward:.2f}")
+        steps.append(step_count)
+        #print(f"[Eval] Episode {episode}: {total_reward:.2f}")
     env.close()
     print(f"[Eval] Mean reward over {config.eval_episodes} episodes: {np.mean(rewards):.2f}")
+    return {"reward" : 
+                {"mean": np.mean(rewards), "var": np.var(rewards), "list": rewards},
+            "steps": 
+                {"mean": np.mean(steps), "var": np.var(steps), "list": steps}
+           }
 
 
 if __name__ == "__main__":
 
 
     cfg = parse_args()
-    trained_agent, device = train(cfg)
+    trained_agent, device, stats = train(cfg)
     evaluate(trained_agent, cfg, device)

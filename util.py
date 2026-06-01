@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 @dataclass
 class DDQNConfig:
-    env_id: str = "LunarLander-v3"
-    episodes: int = 500
+    env_id: str = "CartPole-v1"
+    episodes: int = 100
     max_steps: int = 1000
     gamma: float = 0.99
     lr: float = 1e-3
@@ -18,10 +18,15 @@ class DDQNConfig:
     target_update_freq: int = 200
     seed: int = 42
     hidden_dim: int = 128
-    eval_episodes: int = 5
+    eval_episodes: int = 10
     eval_seed_offset: int = 100_000
     render: bool = False
-    target_network_countdown: int = 25  # Steps before switching to target network
+    target_network_countdown: int = 2500  # Steps before switching to target network
+    lr_factor = 2
+    lr_lower = 0.0001
+    save_model_every=10
+    save_after=300
+    save_before=1000
 
 
 
