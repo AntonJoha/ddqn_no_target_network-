@@ -60,8 +60,10 @@ class ReplayBuffer:
         try:
             with open(path, "wb") as file:
                 pickle.dump(self, file)
+        except pickle.PicklingError as error:
+            raise ValueError(f"Failed to serialize replay buffer to {path}: {error}") from error
         except OSError as error:
-            raise OSError(f"Failed to save replay buffer to {path}") from error
+            raise OSError(f"Failed to save replay buffer to {path}: {error}") from error
 
     @classmethod
     def load(cls, path: str):
@@ -69,11 +71,15 @@ class ReplayBuffer:
             with open(path, "rb") as file:
                 replay_buffer = pickle.load(file)
         except FileNotFoundError as error:
-            raise FileNotFoundError(f"Replay buffer file not found at {path}") from error
+            raise FileNotFoundError(f"Replay buffer file not found at {path}: {error}") from error
         except pickle.UnpicklingError as error:
-            raise ValueError(f"Failed to deserialize replay buffer from {path}") from error
+            raise ValueError(f"Failed to deserialize replay buffer from {path}: {error}") from error
+        except OSError as error:
+            raise OSError(f"Failed to load replay buffer from {path}: {error}") from error
         if not isinstance(replay_buffer, cls):
-            raise TypeError("Loaded object is not a ReplayBuffer.")
+            raise TypeError(
+                f"Loaded object is not a ReplayBuffer. Got {type(replay_buffer).__name__}."
+            )
         return replay_buffer
 
 
