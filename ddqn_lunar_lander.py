@@ -1,17 +1,21 @@
+import dataclasses
+import json
+import os
+import pickle
 import random
 from collections import deque
-import dataclasses
+
 import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
-import json
 import torch.optim as optim
 
 from tgelu import TGeLU
 from util import *
 
 MAX_SEED_VALUE = 2**32 - 1
+REPLAY_BUFFER_SUFFIX = ".replay.pkl"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -51,6 +55,32 @@ class ReplayBuffer:
 
     def __len__(self) -> int:
         return len(self.buffer)
+
+    def save(self, path: str):
+        try:
+            with open(path, "wb") as file:
+                pickle.dump(self, file)
+        except pickle.PicklingError as error:
+            raise ValueError(f"Failed to serialize replay buffer to {path}: {error}") from error
+        except OSError as error:
+            raise OSError(f"Failed to save replay buffer to {path}: {error}") from error
+
+    @classmethod
+    def load(cls, path: str):
+        try:
+            with open(path, "rb") as file:
+                replay_buffer = pickle.load(file)
+        except FileNotFoundError as error:
+            raise FileNotFoundError(f"Replay buffer file not found at {path}: {error}") from error
+        except pickle.UnpicklingError as error:
+            raise ValueError(f"Failed to deserialize replay buffer from {path}: {error}") from error
+        except OSError as error:
+            raise OSError(f"Failed to load replay buffer from {path}: {error}") from error
+        if not isinstance(replay_buffer, cls):
+            raise TypeError(
+                f"Loaded object is not a ReplayBuffer. Got {type(replay_buffer).__name__}."
+            )
+        return replay_buffer
 
 
 class DDQNAgent:
@@ -157,6 +187,12 @@ def train(config: DDQNConfig):
 
         
     replay_buffer = ReplayBuffer(config.replay_size)
+    replay_buffer_path = config.replay_buffer_path
+    if replay_buffer_path is None and config.path is not None:
+        replay_buffer_path = os.path.splitext(config.path)[0] + REPLAY_BUFFER_SUFFIX
+    if replay_buffer_path is not None and os.path.exists(replay_buffer_path):
+        replay_buffer = ReplayBuffer.load(replay_buffer_path)
+        print(f"Replay buffer loaded from {replay_buffer_path}")
     epsilon = config.epsilon_start
     episode_rewards = []
     number_of_steps = []
@@ -211,7 +247,7 @@ def train(config: DDQNConfig):
         else:
             loss_count = 0
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
-            save(agent, episode, config)
+            save(agent, replay_buffer, episode, config)
             
             
 
@@ -219,7 +255,7 @@ def train(config: DDQNConfig):
     return agent, device, stats
 
 
-def save(agent, episode, config):
+def save(agent, replay_buffer: ReplayBuffer, episode, config):
     filename = f"models/{config.env_id}{episode}"
 
     to_save = dataclasses.asdict(config)
@@ -229,10 +265,12 @@ def save(agent, episode, config):
     to_save["save_before"] = 0
     to_save["target_network_countdown"] = 0
     to_save["path"] = filename + ".pth"
+    to_save["replay_buffer_path"] = filename + REPLAY_BUFFER_SUFFIX
     print(to_save)
     with open(filename + ".json", "w") as f:
         json.dump(to_save,f, indent=2)
     torch.save(agent.policy_net.state_dict(), to_save["path"])
+    replay_buffer.save(to_save["replay_buffer_path"])
 
 
 
