@@ -1,6 +1,8 @@
 import argparse
 from dataclasses import dataclass
+
 import torch
+
 
 def state_dict_equal(sd1, sd2):
     if sd1.keys() != sd2.keys():
@@ -39,6 +41,7 @@ class DDQNConfig:
     loss_threshold = 10
     current_episode = 1
     path = "models/CartPole-v180.pth"
+    replay_buffer_path: str | None = None
 
 
 
@@ -63,6 +66,7 @@ def parse_args() -> DDQNConfig:
     parser.add_argument("--eval-seed-offset", type=int, default=100_000)
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--target-network-countdown", type=int, default=25)
+    parser.add_argument("--replay-buffer-path", type=str, default=None)
     args = parser.parse_args()
     return DDQNConfig(
         env_id=args.env_id,
@@ -82,6 +86,6 @@ def parse_args() -> DDQNConfig:
         eval_episodes=args.eval_episodes,
         eval_seed_offset=args.eval_seed_offset,
         render=args.render,
+        replay_buffer_path=args.replay_buffer_path,
     )
-
 

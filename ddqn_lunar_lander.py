@@ -1,11 +1,14 @@
+import dataclasses
+import json
+import os
+import pickle
 import random
 from collections import deque
-import dataclasses
+
 import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
-import json
 import torch.optim as optim
 
 from tgelu import TGeLU
@@ -51,6 +54,18 @@ class ReplayBuffer:
 
     def __len__(self) -> int:
         return len(self.buffer)
+
+    def save(self, path: str):
+        with open(path, "wb") as file:
+            pickle.dump(self, file)
+
+    @classmethod
+    def load(cls, path: str):
+        with open(path, "rb") as file:
+            replay_buffer = pickle.load(file)
+        if not isinstance(replay_buffer, cls):
+            raise TypeError("Loaded object is not a ReplayBuffer.")
+        return replay_buffer
 
 
 class DDQNAgent:
@@ -157,6 +172,12 @@ def train(config: DDQNConfig):
 
         
     replay_buffer = ReplayBuffer(config.replay_size)
+    replay_buffer_path = config.replay_buffer_path
+    if replay_buffer_path is None and config.path is not None:
+        replay_buffer_path = os.path.splitext(config.path)[0] + ".replay.pkl"
+    if replay_buffer_path is not None and os.path.exists(replay_buffer_path):
+        replay_buffer = ReplayBuffer.load(replay_buffer_path)
+        print("Replay buffer loaded")
     epsilon = config.epsilon_start
     episode_rewards = []
     number_of_steps = []
@@ -211,7 +232,7 @@ def train(config: DDQNConfig):
         else:
             loss_count = 0
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
-            save(agent, episode, config)
+            save(agent, replay_buffer, episode, config)
             
             
 
@@ -219,7 +240,7 @@ def train(config: DDQNConfig):
     return agent, device, stats
 
 
-def save(agent, episode, config):
+def save(agent, replay_buffer: ReplayBuffer, episode, config):
     filename = f"models/{config.env_id}{episode}"
 
     to_save = dataclasses.asdict(config)
@@ -229,10 +250,12 @@ def save(agent, episode, config):
     to_save["save_before"] = 0
     to_save["target_network_countdown"] = 0
     to_save["path"] = filename + ".pth"
+    to_save["replay_buffer_path"] = filename + ".replay.pkl"
     print(to_save)
     with open(filename + ".json", "w") as f:
         json.dump(to_save,f, indent=2)
     torch.save(agent.policy_net.state_dict(), to_save["path"])
+    replay_buffer.save(to_save["replay_buffer_path"])
 
 
 
