@@ -9,6 +9,7 @@ tags
 out
 output
 models/
+output/
 
 # Distribution / packaging
 .Python
