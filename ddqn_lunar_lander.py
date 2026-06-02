@@ -15,6 +15,7 @@ from tgelu import TGeLU
 from util import *
 
 MAX_SEED_VALUE = 2**32 - 1
+REPLAY_BUFFER_SUFFIX = ".replay.pkl"
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,13 +57,21 @@ class ReplayBuffer:
         return len(self.buffer)
 
     def save(self, path: str):
-        with open(path, "wb") as file:
-            pickle.dump(self, file)
+        try:
+            with open(path, "wb") as file:
+                pickle.dump(self, file)
+        except OSError as error:
+            raise OSError(f"Failed to save replay buffer to {path}") from error
 
     @classmethod
     def load(cls, path: str):
-        with open(path, "rb") as file:
-            replay_buffer = pickle.load(file)
+        try:
+            with open(path, "rb") as file:
+                replay_buffer = pickle.load(file)
+        except FileNotFoundError as error:
+            raise FileNotFoundError(f"Replay buffer file not found at {path}") from error
+        except pickle.UnpicklingError as error:
+            raise ValueError(f"Failed to deserialize replay buffer from {path}") from error
         if not isinstance(replay_buffer, cls):
             raise TypeError("Loaded object is not a ReplayBuffer.")
         return replay_buffer
@@ -174,10 +183,10 @@ def train(config: DDQNConfig):
     replay_buffer = ReplayBuffer(config.replay_size)
     replay_buffer_path = config.replay_buffer_path
     if replay_buffer_path is None and config.path is not None:
-        replay_buffer_path = os.path.splitext(config.path)[0] + ".replay.pkl"
+        replay_buffer_path = os.path.splitext(config.path)[0] + REPLAY_BUFFER_SUFFIX
     if replay_buffer_path is not None and os.path.exists(replay_buffer_path):
         replay_buffer = ReplayBuffer.load(replay_buffer_path)
-        print("Replay buffer loaded")
+        print(f"Replay buffer loaded from {replay_buffer_path}")
     epsilon = config.epsilon_start
     episode_rewards = []
     number_of_steps = []
@@ -250,7 +259,7 @@ def save(agent, replay_buffer: ReplayBuffer, episode, config):
     to_save["save_before"] = 0
     to_save["target_network_countdown"] = 0
     to_save["path"] = filename + ".pth"
-    to_save["replay_buffer_path"] = filename + ".replay.pkl"
+    to_save["replay_buffer_path"] = filename + REPLAY_BUFFER_SUFFIX
     print(to_save)
     with open(filename + ".json", "w") as f:
         json.dump(to_save,f, indent=2)
