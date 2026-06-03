@@ -157,9 +157,13 @@ class DDQNAgent:
             param_group["lr"] = lr
 
     def update_noise(self):
+        updated = False
         for group in self.optimizer.param_groups:
             if "magnitude" in group:
                 group["magnitude"] = group["magnitude"] * self.config.noise_decay_factor
+                updated = True
+        if not updated:
+            print("No optimizer magnitude parameters found; skipping noise update.")
 
     def update_target_network_countdown(self):
         if self.use_target_network:
@@ -249,7 +253,7 @@ def train(config: DDQNConfig):
                 agent.update_learning_rate(episode)
         else:
             loss_count = 0
-        if config.noise_update_freq > 0 and episode >= config.noise_update_freq and episode % config.noise_update_freq == 0:
+        if config.noise_update_freq > 0 and episode % config.noise_update_freq == 0:
             agent.update_noise()
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
             save(agent, replay_buffer, episode, config)
