@@ -19,6 +19,8 @@ REPLAY_BUFFER_SUFFIX = ".replay.pkl"
 TGELU_LEFT_THRESHOLD = -1
 TGELU_RIGHT_THRESHOLD = 1
 LOSS_MEAN_THRESHOLD = 0.5
+NOISE_UPDATE_FREQUENCY = 100
+NOISE_DECAY_FACTOR = 0.95
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -158,7 +160,7 @@ class DDQNAgent:
 
     def update_noise(self):
         for group in self.optimizer.param_groups:
-            group["magnitude"] = group["magnitude"] ** 0.95
+            group["magnitude"] = group["magnitude"] * NOISE_DECAY_FACTOR
 
     def update_target_network_countdown(self):
         if self.use_target_network:
@@ -256,7 +258,7 @@ def train(config: DDQNConfig):
                 agent.update_learning_rate(episode)
         else:
             loss_count = 0
-        if episode % 100 == 0:
+        if episode % NOISE_UPDATE_FREQUENCY == 0:
             agent.update_noise()
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
             save(agent, replay_buffer, episode, config)
