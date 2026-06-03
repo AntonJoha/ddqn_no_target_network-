@@ -16,16 +16,16 @@ def state_dict_not_equal(sd1, sd2):
 @dataclass
 class DDQNConfig:
     env_id: str = "CartPole-v1"
-    episodes: int = 100
+    episodes: int = 10000
     max_steps: int = 1000
     gamma: float = 0.99
     lr: float = 1e-3
-    batch_size: int = 64
-    replay_size: int = 100_000
+    batch_size: int = 256
+    replay_size: int = 50_000
     min_replay_size: int = 1_000
     epsilon_start: float = 1.0
     epsilon_end: float = 0.05
-    epsilon_decay: float = 0.995
+    epsilon_decay: float = 0.997
     target_update_freq: int = 200
     seed: int = 42
     hidden_dim: int = 128
@@ -35,12 +35,12 @@ class DDQNConfig:
     target_network_countdown: int = 2500  # Steps before switching to target network
     lr_factor = 2
     lr_lower = 0.0001
-    save_after=10
+    save_after=300
     save_rate=20
     save_before=1000
     loss_threshold = 10
     current_episode = 1
-    path = "models/CartPole-v180.pth"
+    path = None
     replay_buffer_path: str | None = None
 
 

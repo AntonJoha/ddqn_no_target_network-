@@ -156,6 +156,10 @@ class DDQNAgent:
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
 
+    def update_noise(self):
+        for group in self.optimizer.param_groups:
+            group["magnitude"] = group["magnitude"]**0.95
+
         
     def update_target_network_countdown(self):
         if self.use_target_network:
@@ -240,14 +244,13 @@ def train(config: DDQNConfig):
         if episode % 5 == 0:
             print("EVAL")
             stats.append([episode, evaluate(agent, config, device)])
-        if np.mean(loss_list) < 0.5:
-            loss_count += 1
-            if loss_count >= config.loss_threshold:
-                agent.update_loss(episode)
-        else:
-            loss_count = 0
+        if episode % 100 == 0:
+            
+            agent.update_loss(episode)
+            agent.update_noise()
+
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
-            save(agent, replay_buffer, episode, config)
+            save(agent, replay_buffer, episode, epsilon, config)
             
             
 
@@ -255,11 +258,12 @@ def train(config: DDQNConfig):
     return agent, device, stats
 
 
-def save(agent, replay_buffer: ReplayBuffer, episode, config):
+def save(agent, replay_buffer: ReplayBuffer, episode, epsilon, config):
     filename = f"models/{config.env_id}{episode}"
 
     to_save = dataclasses.asdict(config)
     to_save["current_episode"] = episode
+    to_save["epsilon_start"] = epsilon
     to_save["save_after"] = 0
     to_save["save_rate"] = 0
     to_save["save_before"] = 0
