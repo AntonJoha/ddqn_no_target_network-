@@ -156,6 +156,10 @@ class DDQNAgent:
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = lr
 
+    def update_noise(self):
+        for group in self.optimizer.param_groups:
+            group["magnitude"] = group["magnitude"] ** 0.95
+
     def update_target_network_countdown(self):
         if self.use_target_network:
             self.target_network_countdown -= 1
@@ -233,13 +237,19 @@ def train(config: DDQNConfig):
         agent.update_target_network_countdown()
         if episode % 5 == 0:
             print("EVAL")
-            stats.append([episode, evaluate(agent, config, device)])
+            eval_stats = evaluate(agent, config, device)
+            stats.append([episode, eval_stats])
+            if eval_stats["reward"]["mean"] >= config.reward_limit:
+                print(f"Reward limit reached: {eval_stats['reward']['mean']:.2f} >= {config.reward_limit:.2f}")
+                break
         if loss_list and np.mean(loss_list) < LOSS_MEAN_THRESHOLD:
             loss_count += 1
             if loss_count >= config.loss_threshold:
                 agent.update_learning_rate(episode)
         else:
             loss_count = 0
+        if episode % 100 == 0:
+            agent.update_noise()
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
             save(agent, replay_buffer, episode, config)
 

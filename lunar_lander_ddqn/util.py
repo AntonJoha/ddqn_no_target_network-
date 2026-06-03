@@ -36,6 +36,7 @@ class DDQNConfig:
     target_network_countdown: int = 25
     lr_decay_exponent: int = 2
     lr_lower: float = 0.0001
+    reward_limit: float = 200.0
     save_after: int = 10
     save_rate: int = 20
     save_before: int = 1000
@@ -65,6 +66,7 @@ def parse_args() -> DDQNConfig:
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--target-network-countdown", type=int, default=25)
     parser.add_argument("--replay-buffer-path", type=str, default=None)
+    parser.add_argument("--reward-limit", type=float, default=200.0)
     args = parser.parse_args()
     return DDQNConfig(
         env_id=args.env_id,
@@ -85,4 +87,5 @@ def parse_args() -> DDQNConfig:
         eval_seed_offset=args.eval_seed_offset,
         render=args.render,
         replay_buffer_path=args.replay_buffer_path,
+        reward_limit=args.reward_limit,
     )
