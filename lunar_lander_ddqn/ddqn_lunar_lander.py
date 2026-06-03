@@ -103,7 +103,7 @@ class DDQNAgent:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
-        self.optimizer = SGBerD_wrapper(self.policy_net.parameters(), lr=config.lr, config={})
+        self.optimizer = SGBerD_wrapper(self.policy_net.parameters(), lr=config.lr)
         self.loss_fn = nn.MSELoss()
         self.config = config
         assert state_dict_equal(self.policy_net.state_dict(), self.target_net.state_dict())

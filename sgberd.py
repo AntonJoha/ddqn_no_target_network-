@@ -39,6 +39,14 @@ class SGBerD(Optimizer):
             raise ValueError(f"Invalid weight_decay value: {weight_decay}")
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires momentum > 0 and zero dampening")
+        if prob <= 0 or prob >= 1:
+            raise ValueError("probability must be in (0, 1)")
+        if magnitude <= 0:
+            raise ValueError("magnitude must be positive")
+        if noise_decay is not None and not isinstance(noise_decay, (bool, int, float)):
+            raise ValueError("noise_decay must be bool, None, or a numeric value")
+        if not isinstance(noise_decay, bool) and noise_decay is not None and noise_decay <= 0:
+            raise ValueError("numeric noise_decay must be positive")
 
         defaults = dict(
             lr=lr,
@@ -76,7 +84,10 @@ class SGBerD(Optimizer):
             prob = float(group["prob"])
             magnitude = float(group["magnitude"])
             noise_decay = group["noise_decay"]
-            noise_rate = float(noise_decay if noise_decay else lr)
+            if noise_decay is None or isinstance(noise_decay, bool) or noise_decay == 0:
+                noise_rate = float(lr)
+            else:
+                noise_rate = float(noise_decay)
             offset = -prob
 
             for p in group["params"]:
