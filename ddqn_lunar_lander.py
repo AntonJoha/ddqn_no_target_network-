@@ -204,6 +204,7 @@ def train(config: DDQNConfig):
     
     stats = []
     loss_count = 0
+    solved_count = 0
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
@@ -244,6 +245,14 @@ def train(config: DDQNConfig):
         if episode % 5 == 0:
             print("EVAL")
             stats.append([episode, evaluate(agent, config, device)])
+            mean = stats[-1][1]["reward"]["mean"]
+            if mean >= 500:
+                solved_count += 1
+            else:
+                solved_count = 0
+            if solved_count >= 20:
+                break
+            
         if episode % 100 == 0:
             
             agent.update_loss(episode)
