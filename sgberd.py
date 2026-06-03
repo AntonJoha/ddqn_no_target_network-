@@ -52,15 +52,13 @@ class SGBerD(Optimizer):
         )
         super().__init__(params, defaults)
 
-        self.prob = float(prob)
-        self.offset = -self.prob
-        self.magnitude = float(magnitude)
-        self.noise_rate = float(lr if not noise_decay else noise_decay)
-
     def __setstate__(self, state):
         super().__setstate__(state)
         for group in self.param_groups:
             group.setdefault("nesterov", False)
+            group.setdefault("prob", 0.5)
+            group.setdefault("magnitude", 1.0)
+            group.setdefault("noise_decay", False)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -75,6 +73,11 @@ class SGBerD(Optimizer):
             dampening = group["dampening"]
             nesterov = group["nesterov"]
             lr = group["lr"]
+            prob = float(group["prob"])
+            magnitude = float(group["magnitude"])
+            noise_decay = group["noise_decay"]
+            noise_rate = float(noise_decay if noise_decay else lr)
+            offset = -prob
 
             for p in group["params"]:
                 if p.grad is None:
@@ -101,10 +104,10 @@ class SGBerD(Optimizer):
 
                 p.add_(d_p, alpha=-lr)
 
-                noise_lr = self.magnitude * self.noise_rate
+                noise_lr = magnitude * noise_rate
                 if noise_lr != 0:
-                    bern = torch.bernoulli(torch.full_like(p, self.prob))
-                    noise = (bern + self.offset) * noise_lr
+                    bern = torch.bernoulli(torch.full_like(p, prob))
+                    noise = (bern + offset) * noise_lr
                     p.add_(noise)
 
         return loss
