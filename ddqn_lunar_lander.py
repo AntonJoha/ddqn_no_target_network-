@@ -108,6 +108,7 @@ class DDQNAgent:
             self.policy_net.load_state_dict(torch.load(config.path))
             print("Weights loaded")
             assert not state_dict_equal(self.policy_net.state_dict(),self.target_net.state_dict())
+            self.target_net = None # TO ensure that the target is not accidentally used when loading weights. 
 
     def act(self, state: np.ndarray, epsilon: float) -> int:
         if random.random() < epsilon:
@@ -284,6 +285,18 @@ def save(agent, replay_buffer: ReplayBuffer, episode, epsilon, config):
         json.dump(to_save,f, indent=2)
     torch.save(agent.policy_net.state_dict(), to_save["path"])
     replay_buffer.save(to_save["replay_buffer_path"])
+
+def save_res(trained_agent, stats, res, cfg, suffix=""):
+    filename = f"output/{cfg.env_id}_finished_{suffix}"
+
+    model_path = filename + ".pth"
+    torch.save(trained_agent.policy_net.state_dict(), model_path)
+    to_save = dataclasses.asdict(cfg)
+    to_save["stats"] = stats
+    to_save["res"] = res
+    with open(filename + ".json", "w") as f:
+        json.dump(to_save, f, indent=2)
+        
 
 
 

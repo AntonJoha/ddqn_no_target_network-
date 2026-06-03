@@ -33,14 +33,14 @@ class DDQNConfig:
     eval_seed_offset: int = 100_000
     render: bool = False
     target_network_countdown: int = 2500  # Steps before switching to target network
-    lr_factor = 2
-    lr_lower = 0.0001
-    save_after=300
-    save_rate=20
-    save_before=1000
-    loss_threshold = 10
-    current_episode = 1
-    path = None
+    lr_factor: float = 2
+    lr_lower: float = 0.0001
+    save_after: int=50
+    save_rate: int=20
+    save_before: int =500
+    loss_threshold: int = 10
+    current_episode: int = 1
+    path: str | None = None
     replay_buffer_path: str | None = None
 
 

@@ -268,6 +268,18 @@ def train(config: DDQNConfig):
     env.close()
     return agent, device, stats
 
+def save_res(trained_agent, stats, res, cfg, suffix=""):
+    filename = f"output/{cfg.env_id}_finished_{suffix}"
+
+    model_path = filename + ".pth"
+    torch.save(trained_agent.policy_net.state_dict(), model_path)
+    to_save = dataclasses.asdict(cfg)
+    to_save["stats"] = stats
+    to_save["res"] = res
+    with open(filename + ".json", "w") as f:
+        json.dump(to_save, f, indent=2)
+        
+
 
 def save(agent, replay_buffer: ReplayBuffer, episode, config):
     os.makedirs("models", exist_ok=True)
