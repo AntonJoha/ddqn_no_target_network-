@@ -19,6 +19,8 @@ REPLAY_BUFFER_SUFFIX = ".replay.pkl"
 TGELU_LEFT_THRESHOLD = -1
 TGELU_RIGHT_THRESHOLD = 1
 LOSS_MEAN_THRESHOLD = 0.5
+NOISE_UPDATE_FREQUENCY = 100
+NOISE_DECAY_FACTOR = 0.95
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -156,6 +158,10 @@ class DDQNAgent:
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = lr
 
+    def update_noise(self):
+        for group in self.optimizer.param_groups:
+            group["magnitude"] = group["magnitude"] * NOISE_DECAY_FACTOR
+
     def update_target_network_countdown(self):
         if self.use_target_network:
             self.target_network_countdown -= 1
@@ -197,6 +203,7 @@ def train(config: DDQNConfig):
 
     stats = []
     loss_count = 0
+    reward_limit_count = 0
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
@@ -233,13 +240,26 @@ def train(config: DDQNConfig):
         agent.update_target_network_countdown()
         if episode % 5 == 0:
             print("EVAL")
-            stats.append([episode, evaluate(agent, config, device)])
+            eval_stats = evaluate(agent, config, device)
+            stats.append([episode, eval_stats])
+            if eval_stats["reward"]["mean"] >= config.reward_limit:
+                reward_limit_count += 1
+                if reward_limit_count >= config.reward_limit_count:
+                    print(
+                        f"Reward limit reached {reward_limit_count} times: "
+                        f"{eval_stats['reward']['mean']:.2f} >= {config.reward_limit:.2f}"
+                    )
+                    break
+            else:
+                reward_limit_count = 0
         if loss_list and np.mean(loss_list) < LOSS_MEAN_THRESHOLD:
             loss_count += 1
             if loss_count >= config.loss_threshold:
                 agent.update_learning_rate(episode)
         else:
             loss_count = 0
+        if episode % NOISE_UPDATE_FREQUENCY == 0:
+            agent.update_noise()
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
             save(agent, replay_buffer, episode, config)
 
