@@ -106,6 +106,8 @@ class DDQNAgent:
         self.optimizer = SGBerD_wrapper(self.policy_net.parameters(), lr=config.lr)
         self.loss_fn = nn.MSELoss()
         self.config = config
+        if not any("magnitude" in group for group in self.optimizer.param_groups):
+            raise ValueError("Optimizer must support magnitude updates for noise decay.")
         assert state_dict_equal(self.policy_net.state_dict(), self.target_net.state_dict())
         if config.path is not None:
             self.policy_net.load_state_dict(torch.load(config.path, map_location=self.device, weights_only=True))
@@ -202,8 +204,7 @@ def train(config: DDQNConfig):
 
     stats = []
     loss_count = 0
-    for episode in range(config.current_episode, config.episodes + 1):
-        training_episode = episode - config.current_episode + 1
+    for training_episode, episode in enumerate(range(config.current_episode, config.episodes + 1), start=1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
         loss_list = []
@@ -241,7 +242,7 @@ def train(config: DDQNConfig):
             print("EVAL")
             eval_stats = evaluate(agent, config, device)
             stats.append([episode, eval_stats])
-            if eval_stats["reward"]["mean"] >= config.reward_limit:
+            if eval_stats.get("reward", {}).get("mean", float("-inf")) >= config.reward_limit:
                 print(f"Reward limit reached: {eval_stats['reward']['mean']:.2f} >= {config.reward_limit:.2f}")
                 break
         if loss_list and np.mean(loss_list) < LOSS_MEAN_THRESHOLD:
