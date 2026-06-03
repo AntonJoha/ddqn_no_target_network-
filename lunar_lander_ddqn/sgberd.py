@@ -10,8 +10,8 @@ def SGBerD_wrapper(params, lr, config=None):
     magnitude = config.get("magnitude", 1.0)
     noise_decay = config.get("noise_decay", False)
 
-    if magnitude == 0:
-        raise ValueError("magnitude must be non-zero")
+    if magnitude <= 0:
+        raise ValueError("magnitude must be positive")
     if prob <= 0 or prob >= 1:
         raise ValueError("probability must be in (0, 1)")
 
@@ -46,13 +46,16 @@ class SGBerD(Optimizer):
             dampening=dampening,
             weight_decay=weight_decay,
             nesterov=nesterov,
+            prob=prob,
+            magnitude=magnitude,
+            noise_decay=noise_decay,
         )
         super().__init__(params, defaults)
 
         self.prob = float(prob)
         self.offset = -self.prob
         self.magnitude = float(magnitude)
-        self.noise_rate = float(lr if noise_decay is False else noise_decay)
+        self.noise_rate = float(lr if not noise_decay else noise_decay)
 
     def __setstate__(self, state):
         super().__setstate__(state)
