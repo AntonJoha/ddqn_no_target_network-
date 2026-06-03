@@ -158,7 +158,8 @@ class DDQNAgent:
 
     def update_noise(self):
         for group in self.optimizer.param_groups:
-            group["magnitude"] = group["magnitude"] ** 0.95
+            if "magnitude" in group:
+                group["magnitude"] = group["magnitude"] ** 0.95
 
     def update_target_network_countdown(self):
         if self.use_target_network:
@@ -248,7 +249,7 @@ def train(config: DDQNConfig):
                 agent.update_learning_rate(episode)
         else:
             loss_count = 0
-        if episode % 100 == 0:
+        if episode % config.noise_update_freq == 0:
             agent.update_noise()
         if episode >= config.save_after and episode <= config.save_before and episode % config.save_rate == 0:
             save(agent, replay_buffer, episode, config)
