@@ -9,8 +9,8 @@ import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
 
+from sgberd import SGBerD_wrapper
 from tgelu import TGeLU
 from util import *
 
@@ -103,7 +103,7 @@ class DDQNAgent:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=config.lr)
+        self.optimizer = SGBerD_wrapper(self.policy_net.parameters(), lr=config.lr, config={})
         self.loss_fn = nn.MSELoss()
         self.config = config
         assert state_dict_equal(self.policy_net.state_dict(), self.target_net.state_dict())
