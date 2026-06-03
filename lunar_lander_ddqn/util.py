@@ -38,6 +38,7 @@ class DDQNConfig:
     lr_lower: float = 0.0001
     reward_limit: float = 200.0
     noise_update_freq: int = 100
+    noise_decay_factor: float = 0.95
     save_after: int = 10
     save_rate: int = 20
     save_before: int = 1000
@@ -69,6 +70,7 @@ def parse_args() -> DDQNConfig:
     parser.add_argument("--replay-buffer-path", type=str, default=None)
     parser.add_argument("--reward-limit", type=float, default=200.0)
     parser.add_argument("--noise-update-freq", type=int, default=100)
+    parser.add_argument("--noise-decay-factor", type=float, default=0.95)
     args = parser.parse_args()
     return DDQNConfig(
         env_id=args.env_id,
@@ -91,4 +93,5 @@ def parse_args() -> DDQNConfig:
         replay_buffer_path=args.replay_buffer_path,
         reward_limit=args.reward_limit,
         noise_update_freq=args.noise_update_freq,
+        noise_decay_factor=args.noise_decay_factor,
     )
