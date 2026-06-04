@@ -233,20 +233,28 @@ def train(config: DDQNConfig):
         epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
         episode_rewards.append(reward_list)
         episode_loss.append(loss_list)
+        mean_loss = float(np.mean(loss_list)) if loss_list else None
         #avg_last_10 = np.mean(episode_rewards[-10:])
         print(
             f"Episode {episode:4d}/{config.episodes} | "
             #f"Reward: {reward_list:8.2f} | "
             f"Reward: {sum(reward_list)} | "
-
+            f"Loss: {mean_loss if mean_loss is not None else 'n/a'} | "
             #f"Avg(10): {avg_last_10:8.2f} | "
             f"Epsilon: {epsilon:6.3f}"
         )
         agent.update_target_network_countdown() ## Count down on the target network.
         if episode % 5 == 0:
             print("EVAL")
-            stats.append([episode, evaluate(agent, config, device)])
-            mean = stats[-1][1]["reward"]["mean"]
+            eval_stats = evaluate(agent, config, device)
+            stats.append(
+                {
+                    "episode": episode,
+                    "evaluation": eval_stats,
+                    "training_loss": mean_loss,
+                }
+            )
+            mean = eval_stats["reward"]["mean"]
             if mean >= 500:
                 solved_count += 1
             else:

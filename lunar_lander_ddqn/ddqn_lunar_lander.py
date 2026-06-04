@@ -233,9 +233,11 @@ def train(config: DDQNConfig):
         epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
         episode_rewards.append(reward_list)
         episode_loss.append(loss_list)
+        mean_loss = float(np.mean(loss_list)) if loss_list else None
         print(
             f"Episode {episode:4d}/{config.episodes} | "
             f"Reward: {sum(reward_list)} | "
+            f"Loss: {mean_loss if mean_loss is not None else 'n/a'} | "
             f"Epsilon: {epsilon:6.3f}"
         )
         agent.update_target_network_countdown()
@@ -243,7 +245,13 @@ def train(config: DDQNConfig):
             print("EVAL")
 
             eval_stats = evaluate(agent, config, device)
-            stats.append([episode, eval_stats])
+            stats.append(
+                {
+                    "episode": episode,
+                    "evaluation": eval_stats,
+                    "training_loss": mean_loss,
+                }
+            )
             if eval_stats["reward"]["mean"] >= config.reward_limit:
                 reward_limit_count += 1
                 if reward_limit_count >= config.reward_limit_count:
