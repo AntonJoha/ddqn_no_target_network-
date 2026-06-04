@@ -234,9 +234,11 @@ def train(config: DDQNConfig):
         epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
         episode_rewards.append(reward_list)
         episode_loss.append(loss_list)
-        episode_mean_loss = float(np.mean(loss_list)) if loss_list else None
         if loss_list:
+            episode_mean_loss = float(np.mean(loss_list))
             training_losses_since_eval.extend(loss_list)
+        else:
+            episode_mean_loss = None
         print(
             f"Episode {episode:4d}/{config.episodes} | "
             f"Reward: {sum(reward_list)} | "
