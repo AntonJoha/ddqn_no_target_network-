@@ -206,6 +206,8 @@ def train(config: DDQNConfig):
     loss_count = 0
 
     reward_limit_count = 0
+    max(config.epsilon_end, epsilon * (config.epsilon_decay*config.current_episode))
+
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
