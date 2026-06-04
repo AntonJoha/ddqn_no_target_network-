@@ -147,7 +147,7 @@ class DDQNAgent:
         self.optimizer.step()
 
         self.update_steps += 1
-        if self.update_steps % self.target_update_freq == 0:
+        if self.target_net is not None and self.update_steps % self.target_update_freq == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
         return float(loss.item())

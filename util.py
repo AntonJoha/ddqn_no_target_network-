@@ -16,7 +16,7 @@ def state_dict_not_equal(sd1, sd2):
 @dataclass
 class DDQNConfig:
     env_id: str = "CartPole-v1"
-    episodes: int = 10000
+    episodes: int = 5000
     max_steps: int = 1000
     gamma: float = 0.99
     lr: float = 1e-3

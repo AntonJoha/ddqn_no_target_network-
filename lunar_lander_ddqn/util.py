@@ -17,16 +17,16 @@ def state_dict_not_equal(sd1, sd2):
 @dataclass
 class DDQNConfig:
     env_id: str = "LunarLander-v3"
-    episodes: int = 10000
+    episodes: int = 5000
     max_steps: int = 1000
     gamma: float = 0.99
     lr: float = 1e-3
     batch_size: int = 256
-    replay_size: int = 100_000
+    replay_size: int = 50_000
     min_replay_size: int = 1_000
     epsilon_start: float = 1.0
     epsilon_end: float = 0.05
-    epsilon_decay: float = 0.995
+    epsilon_decay: float = 0.997
     target_update_freq: int = 200
     seed: int = 42
     hidden_dim: int = 128
@@ -37,7 +37,7 @@ class DDQNConfig:
     lr_decay_exponent: int = 2
     lr_lower: float = 0.0001
     reward_limit: float = 200.0
-    reward_limit_count: int = 100
+    reward_limit_count: int = 20
     save_after: int = 200
     save_rate: int = 20
     save_before: int = 1000
