@@ -131,12 +131,12 @@ class DDQNAgent:
 
         current_q = self.policy_net(states_t).gather(1, actions_t).squeeze(1)
         with torch.no_grad():
-            next_actions = self.policy_net(next_states_t).argmax(dim=1, keepdim=True)
-            next_q = None
+            next_policy_q = self.policy_net(next_states_t)
+            next_actions = next_policy_q.argmax(dim=1, keepdim=True)
             if self.use_target_network:
                 next_q = self.target_net(next_states_t).gather(1, next_actions).squeeze(1)
             else:
-                next_q = self.policy_net(next_states_t).gather(1, next_actions).squeeze(1)
+                next_q = next_policy_q.gather(1, next_actions).squeeze(1)
             target_q = rewards_t + self.gamma * (1.0 - dones_t) * next_q
 
 
