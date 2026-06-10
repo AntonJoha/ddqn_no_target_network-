@@ -18,6 +18,13 @@ MAX_SEED_VALUE = 2**32 - 1
 REPLAY_BUFFER_SUFFIX = ".replay.pkl"
 NOISE_DECAY_FACTOR = 0.95
 
+MAX_SEED_VALUE = 2**32 - 1
+REPLAY_BUFFER_SUFFIX = ".replay.pkl"
+TGELU_LEFT_THRESHOLD = -1
+TGELU_RIGHT_THRESHOLD = 1
+LOSS_MEAN_THRESHOLD = 0.5
+NOISE_UPDATE_FREQUENCY = 100
+NOISE_DECAY_FACTOR = 0.95
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -26,9 +33,9 @@ class QNetwork(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
-            TGeLU(-1,1, device=device),
+            TGeLU(TGELU_LEFT_THRESHOLD, TGELU_RIGHT_THRESHOLD, device=device),
             nn.Linear(hidden_dim, hidden_dim),
-            TGeLU(-1,1, device=device),
+            TGeLU(TGELU_LEFT_THRESHOLD, TGELU_RIGHT_THRESHOLD, device=device),
             nn.Linear(hidden_dim, action_dim),
         )
 
@@ -211,6 +218,12 @@ def train(config: DDQNConfig):
     
     stats = []
     solved_count = 0
+
+    epsilon = .99
+
+    epsilon = max(config.epsilon_end, epsilon * (config.epsilon_decay**config.current_episode))
+    for _ in range(int(config.current_episode/NOISE_UPDATE_FREQUENCY)):
+        agent.update_noise()
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 

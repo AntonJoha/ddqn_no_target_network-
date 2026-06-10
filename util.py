@@ -36,7 +36,7 @@ class DDQNConfig:
     lr_factor: float = 2
     lr_lower: float = 0.0001
     save_after: int=50
-    save_rate: int=20
+    save_rate: int=40
     save_before: int =500
     loss_threshold: int = 10
     current_episode: int = 1
