@@ -123,8 +123,8 @@ class DDQNAgent:
     def act(self, state: np.ndarray, epsilon: float) -> int:
         if random.random() < epsilon:
             return random.randrange(self.action_dim)
-        state_t = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
-        with torch.no_grad():
+        state_t = torch.as_tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+        with torch.inference_mode():
             q_values = self.policy_net(state_t)
         return int(torch.argmax(q_values, dim=1).item())
 
@@ -133,20 +133,20 @@ class DDQNAgent:
             return None
 
         states, actions, rewards, next_states, dones = replay_buffer.sample(self.batch_size)
-        states_t = torch.tensor(states, device=self.device)
-        actions_t = torch.tensor(actions, device=self.device).unsqueeze(1)
-        rewards_t = torch.tensor(rewards, device=self.device)
-        next_states_t = torch.tensor(next_states, device=self.device)
-        dones_t = torch.tensor(dones, device=self.device)
+        states_t = torch.as_tensor(states, device=self.device)
+        actions_t = torch.as_tensor(actions, device=self.device).unsqueeze(1)
+        rewards_t = torch.as_tensor(rewards, device=self.device)
+        next_states_t = torch.as_tensor(next_states, device=self.device)
+        dones_t = torch.as_tensor(dones, device=self.device)
 
         current_q = self.policy_net(states_t).gather(1, actions_t).squeeze(1)
         with torch.no_grad():
-            next_actions = self.policy_net(next_states_t).argmax(dim=1, keepdim=True)
-            next_q = None
+            next_policy_q = self.policy_net(next_states_t)
+            next_actions = next_policy_q.argmax(dim=1, keepdim=True)
             if self.use_target_network:
                 next_q = self.target_net(next_states_t).gather(1, next_actions).squeeze(1)
             else:
-                next_q = self.policy_net(next_states_t).gather(1, next_actions).squeeze(1)
+                next_q = next_policy_q.gather(1, next_actions).squeeze(1)
             target_q = rewards_t + self.gamma * (1.0 - dones_t) * next_q
 
 
@@ -211,10 +211,8 @@ def train(config: DDQNConfig):
         replay_buffer = ReplayBuffer.load(replay_buffer_path)
         print(f"Replay buffer loaded from {replay_buffer_path}")
     epsilon = config.epsilon_start
-    episode_rewards = []
-    number_of_steps = []
-    episode_loss = []
-    training_losses_since_eval = []
+    training_losses_since_eval_sum = 0.0
+    training_losses_since_eval_count = 0
     
     stats = []
     solved_count = 0
@@ -227,50 +225,48 @@ def train(config: DDQNConfig):
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
-        loss_list = []
-        reward_list = []
-        count = 0
+        episode_reward = 0.0
+        episode_loss_sum = 0.0
+        episode_loss_count = 0
         for _ in range(config.max_steps):
-            count += 1
             action = agent.act(state, epsilon)
             next_state, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
             replay_buffer.add(state, action, reward, next_state, done)
             state = next_state
-            
-            reward_list.append(reward)
+            episode_reward += reward
 
             if len(replay_buffer) >= config.min_replay_size:
                 loss = agent.train_step(replay_buffer)
-                loss_list.append(loss)
+                if loss is not None:
+                    episode_loss_sum += loss
+                    episode_loss_count += 1
 
             if done:
                 break
-                
-        number_of_steps.append(count)
+
         epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
-        episode_rewards.append(reward_list)
-        episode_loss.append(loss_list)
-        if loss_list:
-            episode_mean_loss = float(np.mean(loss_list))
-            training_losses_since_eval.extend(loss_list)
+
+        if episode_loss_count:
+            episode_mean_loss = episode_loss_sum / episode_loss_count
+            training_losses_since_eval_sum += episode_loss_sum
+            training_losses_since_eval_count += episode_loss_count
         else:
             episode_mean_loss = None
-        #avg_last_10 = np.mean(episode_rewards[-10:])
         print(
             f"Episode {episode:4d}/{config.episodes} | "
-            #f"Reward: {reward_list:8.2f} | "
-            f"Reward: {sum(reward_list)} | "
+            f"Reward: {episode_reward} | "
             f"Loss: {episode_mean_loss if episode_mean_loss is not None else 'n/a'} | "
-            #f"Avg(10): {avg_last_10:8.2f} | "
             f"Epsilon: {epsilon:6.3f}"
         )
-        agent.update_target_network_countdown() ## Count down on the target network.
+        agent.update_target_network_countdown()
         if episode % 5 == 0:
             print("EVAL")
             eval_stats = evaluate(agent, config, device)
             eval_training_loss = (
-                float(np.mean(training_losses_since_eval)) if training_losses_since_eval else None
+                training_losses_since_eval_sum / training_losses_since_eval_count
+                if training_losses_since_eval_count
+                else None
             )
             stats.append(
                 {
@@ -279,7 +275,8 @@ def train(config: DDQNConfig):
                     "training_loss": eval_training_loss,
                 }
             )
-            training_losses_since_eval = []
+            training_losses_since_eval_sum = 0.0
+            training_losses_since_eval_count = 0
             mean = eval_stats["reward"]["mean"]
             if mean >= 500:
                 solved_count += 1
@@ -349,8 +346,8 @@ def evaluate(agent: DDQNAgent, config: DDQNConfig, device: torch.device):
         step_count = 0
         for _ in range(config.max_steps):
             step_count += 1
-            state_t = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-            with torch.no_grad():
+            state_t = torch.as_tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+            with torch.inference_mode():
                 action = int(agent.policy_net(state_t).argmax(dim=1).item())
             next_state, reward, terminated, truncated, _ = env.step(action)
             state = next_state
