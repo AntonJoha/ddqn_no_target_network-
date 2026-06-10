@@ -39,7 +39,7 @@ class DDQNConfig:
     reward_limit: float = 200.0
     reward_limit_count: int = 20
     save_after: int = 200
-    save_rate: int = 20
+    save_rate: int = 40
     save_before: int = 1000
     loss_threshold: int = 10
     current_episode: int = 1
