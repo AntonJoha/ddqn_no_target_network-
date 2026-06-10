@@ -313,7 +313,6 @@ def save_res(trained_agent, stats, res, cfg, suffix=""):
 
 
 def save(agent, replay_buffer: ReplayBuffer, episode, config):
-    os.makedirs("models", exist_ok=True)
     run_name = f"{config.env_id}_seed_{config.seed}"
     filename = f"models/{run_name}_episode{episode}"
 

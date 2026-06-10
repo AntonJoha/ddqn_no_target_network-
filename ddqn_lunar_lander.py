@@ -291,7 +291,6 @@ def train(config: DDQNConfig):
 
 
 def save(agent, replay_buffer: ReplayBuffer, episode, epsilon, config):
-    os.makedirs("models", exist_ok=True)
     run_name = f"{config.env_id}_seed_{config.seed}"
     filename = f"models/{run_name}_episode{episode}"
 
