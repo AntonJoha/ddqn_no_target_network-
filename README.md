@@ -21,3 +21,9 @@ Useful options:
 - `--env-id LunarLander-v3`
 - `--seed 42` (use a different seed for each run; saved files include the seed)
 - `--render` (renders environment while training/evaluating)
+
+## Notebook cleanup
+
+```bash
+python clear_notebooks.py
+```
