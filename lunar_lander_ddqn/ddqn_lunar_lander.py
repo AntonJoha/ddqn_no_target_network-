@@ -314,7 +314,7 @@ def save_res(trained_agent, stats, res, cfg, suffix=""):
 
 def save(agent, replay_buffer: ReplayBuffer, episode, config):
     run_name = f"{config.env_id}_seed_{config.seed}"
-    filename = f"models/{run_name}_episode{episode}"
+    filename = f"models/{run_name}_episode_{episode}"
 
     to_save = dataclasses.asdict(config)
     to_save["current_episode"] = episode
