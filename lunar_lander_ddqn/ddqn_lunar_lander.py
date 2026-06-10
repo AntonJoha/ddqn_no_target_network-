@@ -205,6 +205,14 @@ def train(config: DDQNConfig):
     loss_count = 0
 
     reward_limit_count = 0
+    epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
+
+    epsilon = max(config.epsilon_end, epsilon * (config.epsilon_decay**config.current_episode))
+    for _ in range(int(config.current_episode/NOISE_UPDATE_FREQUENCY)):
+        agent.update_noise()
+
+        
+    
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
@@ -231,6 +239,7 @@ def train(config: DDQNConfig):
 
         number_of_steps.append(count)
         epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
+        
         episode_rewards.append(reward_list)
         episode_loss.append(loss_list)
         print(
