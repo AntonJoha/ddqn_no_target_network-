@@ -17,14 +17,10 @@ from util import *
 MAX_SEED_VALUE = 2**32 - 1
 REPLAY_BUFFER_SUFFIX = ".replay.pkl"
 NOISE_DECAY_FACTOR = 0.95
-
-MAX_SEED_VALUE = 2**32 - 1
-REPLAY_BUFFER_SUFFIX = ".replay.pkl"
 TGELU_LEFT_THRESHOLD = -1
 TGELU_RIGHT_THRESHOLD = 1
 LOSS_MEAN_THRESHOLD = 0.5
 NOISE_UPDATE_FREQUENCY = 100
-NOISE_DECAY_FACTOR = 0.95
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -210,7 +206,6 @@ def train(config: DDQNConfig):
     if replay_buffer_path is not None and os.path.exists(replay_buffer_path):
         replay_buffer = ReplayBuffer.load(replay_buffer_path)
         print(f"Replay buffer loaded from {replay_buffer_path}")
-    epsilon = config.epsilon_start
     episode_rewards = []
     number_of_steps = []
     episode_loss = []
@@ -219,9 +214,10 @@ def train(config: DDQNConfig):
     stats = []
     solved_count = 0
 
-    epsilon = .99
-
-    epsilon = max(config.epsilon_end, epsilon * (config.epsilon_decay**config.current_episode))
+    epsilon = max(
+        config.epsilon_end,
+        config.epsilon_start * (config.epsilon_decay**config.current_episode),
+    )
     for _ in range(int(config.current_episode/NOISE_UPDATE_FREQUENCY)):
         agent.update_noise()
     for episode in range(config.current_episode, config.episodes + 1):

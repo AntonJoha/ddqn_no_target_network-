@@ -198,7 +198,6 @@ def train(config: DDQNConfig):
     if replay_buffer_path is not None and os.path.exists(replay_buffer_path):
         replay_buffer = ReplayBuffer.load(replay_buffer_path)
         print(f"Replay buffer loaded from {replay_buffer_path}")
-    epsilon = config.epsilon_start
     episode_rewards = []
     number_of_steps = []
     episode_loss = []
@@ -208,9 +207,10 @@ def train(config: DDQNConfig):
     loss_count = 0
 
     reward_limit_count = 0
-    epsilon = .99
-
-    epsilon = max(config.epsilon_end, epsilon * (config.epsilon_decay**config.current_episode))
+    epsilon = max(
+        config.epsilon_end,
+        config.epsilon_start * (config.epsilon_decay**config.current_episode),
+    )
     for _ in range(int(config.current_episode/NOISE_UPDATE_FREQUENCY)):
         agent.update_noise()
 
