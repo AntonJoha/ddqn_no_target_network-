@@ -183,6 +183,8 @@ def set_seed(seed: int):
 
 def train(config: DDQNConfig):
     set_seed(config.seed)
+    os.makedirs("models", exist_ok=True)
+    os.makedirs("output", exist_ok=True)
     render_mode = "human" if config.render else None
     env = gym.make(config.env_id, render_mode=render_mode)
     env.action_space.seed(config.seed)
@@ -309,7 +311,6 @@ def save(agent, replay_buffer: ReplayBuffer, episode, epsilon, config):
     replay_buffer.save(to_save["replay_buffer_path"])
 
 def save_res(trained_agent, stats, res, cfg, suffix=""):
-    os.makedirs("output", exist_ok=True)
     run_name = f"{cfg.env_id}_seed_{cfg.seed}"
     filename = f"output/{run_name}_finished"
     if suffix:
