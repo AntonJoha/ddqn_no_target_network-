@@ -27,7 +27,7 @@ class DDQNConfig:
     epsilon_end: float = 0.05
     epsilon_decay: float = 0.997
     target_update_freq: int = 200
-    seed: int = 42
+    seed: int = 4244354
     hidden_dim: int = 128
     eval_episodes: int = 10
     eval_seed_offset: int = 100_000

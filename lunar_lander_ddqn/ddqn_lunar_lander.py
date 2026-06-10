@@ -200,6 +200,7 @@ def train(config: DDQNConfig):
     episode_rewards = []
     number_of_steps = []
     episode_loss = []
+    training_losses_since_eval = []
 
     stats = []
     loss_count = 0
@@ -212,7 +213,7 @@ def train(config: DDQNConfig):
         agent.update_noise()
 
         
-    
+
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
 
@@ -242,9 +243,15 @@ def train(config: DDQNConfig):
         
         episode_rewards.append(reward_list)
         episode_loss.append(loss_list)
+        if loss_list:
+            episode_mean_loss = float(np.mean(loss_list))
+            training_losses_since_eval.extend(loss_list)
+        else:
+            episode_mean_loss = None
         print(
             f"Episode {episode:4d}/{config.episodes} | "
             f"Reward: {sum(reward_list)} | "
+            f"Loss: {episode_mean_loss if episode_mean_loss is not None else 'n/a'} | "
             f"Epsilon: {epsilon:6.3f}"
         )
         agent.update_target_network_countdown()
@@ -252,7 +259,17 @@ def train(config: DDQNConfig):
             print("EVAL")
 
             eval_stats = evaluate(agent, config, device)
-            stats.append([episode, eval_stats])
+            eval_training_loss = (
+                float(np.mean(training_losses_since_eval)) if training_losses_since_eval else None
+            )
+            stats.append(
+                {
+                    "episode": episode,
+                    "evaluation": eval_stats,
+                    "training_loss": eval_training_loss,
+                }
+            )
+            training_losses_since_eval = []
             if eval_stats["reward"]["mean"] >= config.reward_limit:
                 reward_limit_count += 1
                 if reward_limit_count >= config.reward_limit_count:

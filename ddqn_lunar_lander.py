@@ -202,6 +202,7 @@ def train(config: DDQNConfig):
     episode_rewards = []
     number_of_steps = []
     episode_loss = []
+    training_losses_since_eval = []
     
     stats = []
     loss_count = 0
@@ -233,20 +234,36 @@ def train(config: DDQNConfig):
         epsilon = max(config.epsilon_end, epsilon * config.epsilon_decay)
         episode_rewards.append(reward_list)
         episode_loss.append(loss_list)
+        if loss_list:
+            episode_mean_loss = float(np.mean(loss_list))
+            training_losses_since_eval.extend(loss_list)
+        else:
+            episode_mean_loss = None
         #avg_last_10 = np.mean(episode_rewards[-10:])
         print(
             f"Episode {episode:4d}/{config.episodes} | "
             #f"Reward: {reward_list:8.2f} | "
             f"Reward: {sum(reward_list)} | "
-
+            f"Loss: {episode_mean_loss if episode_mean_loss is not None else 'n/a'} | "
             #f"Avg(10): {avg_last_10:8.2f} | "
             f"Epsilon: {epsilon:6.3f}"
         )
         agent.update_target_network_countdown() ## Count down on the target network.
         if episode % 5 == 0:
             print("EVAL")
-            stats.append([episode, evaluate(agent, config, device)])
-            mean = stats[-1][1]["reward"]["mean"]
+            eval_stats = evaluate(agent, config, device)
+            eval_training_loss = (
+                float(np.mean(training_losses_since_eval)) if training_losses_since_eval else None
+            )
+            stats.append(
+                {
+                    "episode": episode,
+                    "evaluation": eval_stats,
+                    "training_loss": eval_training_loss,
+                }
+            )
+            training_losses_since_eval = []
+            mean = eval_stats["reward"]["mean"]
             if mean >= 500:
                 solved_count += 1
             else:
