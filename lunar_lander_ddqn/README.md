@@ -13,3 +13,5 @@ pip install gymnasium[box2d] torch numpy
 ```bash
 python lunar_lander_ddqn/ddqn_lunar_lander.py --episodes 500
 ```
+
+Use `--seed` to keep separate runs from overwriting each other's saved models and outputs.

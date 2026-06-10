@@ -295,7 +295,11 @@ def train(config: DDQNConfig):
     return agent, device, stats
 
 def save_res(trained_agent, stats, res, cfg, suffix=""):
-    filename = f"output/{cfg.env_id}_finished_{suffix}"
+    os.makedirs("output", exist_ok=True)
+    run_name = f"{cfg.env_id}_seed{cfg.seed}"
+    filename = f"output/{run_name}_finished"
+    if suffix:
+        filename = f"{filename}_{suffix}"
 
     model_path = filename + ".pth"
     torch.save(trained_agent.policy_net.state_dict(), model_path)
@@ -309,7 +313,8 @@ def save_res(trained_agent, stats, res, cfg, suffix=""):
 
 def save(agent, replay_buffer: ReplayBuffer, episode, config):
     os.makedirs("models", exist_ok=True)
-    filename = f"models/{config.env_id}{episode}"
+    run_name = f"{config.env_id}_seed{config.seed}"
+    filename = f"models/{run_name}_episode{episode}"
 
     to_save = dataclasses.asdict(config)
     to_save["current_episode"] = episode
