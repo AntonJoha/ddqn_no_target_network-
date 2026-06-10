@@ -16,6 +16,7 @@ from util import *
 
 MAX_SEED_VALUE = 2**32 - 1
 REPLAY_BUFFER_SUFFIX = ".replay.pkl"
+NOISE_DECAY_FACTOR = 0.95
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,10 +106,12 @@ class DDQNAgent:
         self.config = config
         assert state_dict_equal(self.policy_net.state_dict(), self.target_net.state_dict())
         if config.path is not None:
-            self.policy_net.load_state_dict(torch.load(config.path))
+            self.policy_net.load_state_dict(torch.load(config.path, map_location=self.device))
             print("Weights loaded")
-            assert not state_dict_equal(self.policy_net.state_dict(),self.target_net.state_dict())
-            self.target_net = None # TO ensure that the target is not accidentally used when loading weights. 
+            assert not state_dict_equal(self.policy_net.state_dict(), self.target_net.state_dict())
+            self.target_net = None
+            self.use_target_network = False
+            self.target_network_countdown = 0
 
     def act(self, state: np.ndarray, epsilon: float) -> int:
         if random.random() < epsilon:
@@ -133,7 +136,7 @@ class DDQNAgent:
         with torch.no_grad():
             next_actions = self.policy_net(next_states_t).argmax(dim=1, keepdim=True)
             next_q = None
-            if self.use_target_network:
+            if self.use_target_network and self.target_net is not None:
                 next_q = self.target_net(next_states_t).gather(1, next_actions).squeeze(1)
             else:
                 next_q = self.policy_net(next_states_t).gather(1, next_actions).squeeze(1)
@@ -159,7 +162,7 @@ class DDQNAgent:
 
     def update_noise(self):
         for group in self.optimizer.param_groups:
-            group["magnitude"] = group["magnitude"]**0.95
+            group["magnitude"] *= NOISE_DECAY_FACTOR
 
         
     def update_target_network_countdown(self):
@@ -286,6 +289,7 @@ def train(config: DDQNConfig):
 
 
 def save(agent, replay_buffer: ReplayBuffer, episode, epsilon, config):
+    os.makedirs("models", exist_ok=True)
     filename = f"models/{config.env_id}{episode}"
 
     to_save = dataclasses.asdict(config)
