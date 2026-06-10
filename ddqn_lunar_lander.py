@@ -183,6 +183,8 @@ def set_seed(seed: int):
 
 def train(config: DDQNConfig):
     set_seed(config.seed)
+    os.makedirs("models", exist_ok=True)
+    os.makedirs("output", exist_ok=True)
     render_mode = "human" if config.render else None
     env = gym.make(config.env_id, render_mode=render_mode)
     env.action_space.seed(config.seed)
@@ -289,8 +291,8 @@ def train(config: DDQNConfig):
 
 
 def save(agent, replay_buffer: ReplayBuffer, episode, epsilon, config):
-    os.makedirs("models", exist_ok=True)
-    filename = f"models/{config.env_id}{episode}"
+    run_name = f"{config.env_id}_seed_{config.seed}"
+    filename = f"models/{run_name}_episode_{episode}"
 
     to_save = dataclasses.asdict(config)
     to_save["current_episode"] = episode
@@ -308,7 +310,10 @@ def save(agent, replay_buffer: ReplayBuffer, episode, epsilon, config):
     replay_buffer.save(to_save["replay_buffer_path"])
 
 def save_res(trained_agent, stats, res, cfg, suffix=""):
-    filename = f"output/{cfg.env_id}_finished_{suffix}"
+    run_name = f"{cfg.env_id}_seed_{cfg.seed}"
+    filename = f"output/{run_name}_finished"
+    if suffix:
+        filename = f"{filename}_{suffix}"
 
     model_path = filename + ".pth"
     torch.save(trained_agent.policy_net.state_dict(), model_path)
