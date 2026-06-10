@@ -210,7 +210,6 @@ def train(config: DDQNConfig):
     training_losses_since_eval = []
     
     stats = []
-    loss_count = 0
     solved_count = 0
     for episode in range(config.current_episode, config.episodes + 1):
         state, _ = env.reset(seed=(config.seed + episode) % MAX_SEED_VALUE)
