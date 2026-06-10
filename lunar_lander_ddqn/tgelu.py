@@ -18,10 +18,16 @@ class TGeLU(nn.Module):
         cond3 = (self.tl <= input) * (input < 0)
         cond4 = (input < self.tl)
 
-        term1 = self.tr * self.normal.cdf(self.tr) + (input - self.tr) * (1 - self.normal.cdf(input - self.tr))
-        term2 = input * self.normal.cdf(input)
-        term3 = input * (1 - self.normal.cdf(input))
-        term4 = self.tl * (1 - self.normal.cdf(self.tl)) + (input - self.tl) * self.normal.cdf(input - self.tl)
+        cdf_input = self.normal.cdf(input)
+        cdf_input_tr = self.normal.cdf(input - self.tr)
+        cdf_input_tl = self.normal.cdf(input - self.tl)
+        cdf_tr = self.normal.cdf(self.tr)
+        cdf_tl = self.normal.cdf(self.tl)
+
+        term1 = self.tr * cdf_tr + (input - self.tr) * (1 - cdf_input_tr)
+        term2 = input * cdf_input
+        term3 = input * (1 - cdf_input)
+        term4 = self.tl * (1 - cdf_tl) + (input - self.tl) * cdf_input_tl
 
         return cond1 * term1 + cond2 * term2 + cond3 * term3 + cond4 * term4
 

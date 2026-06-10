@@ -114,8 +114,8 @@ class SGBerD(Optimizer):
 
                 noise_lr = magnitude * noise_rate
                 if noise_lr != 0:
-                    bern = torch.bernoulli(torch.full_like(p, prob))
-                    noise = (bern + offset) * noise_lr
-                    p.add_(noise)
+                    noise = torch.rand_like(p).lt(prob).to(p.dtype)
+                    noise.add_(offset)
+                    p.add_(noise, alpha=noise_lr)
 
         return loss
