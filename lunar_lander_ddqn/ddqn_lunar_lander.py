@@ -296,7 +296,7 @@ def train(config: DDQNConfig):
 
 def save_res(trained_agent, stats, res, cfg, suffix=""):
     os.makedirs("output", exist_ok=True)
-    run_name = f"{cfg.env_id}_seed{cfg.seed}"
+    run_name = f"{cfg.env_id}_seed_{cfg.seed}"
     filename = f"output/{run_name}_finished"
     if suffix:
         filename = f"{filename}_{suffix}"
@@ -313,7 +313,7 @@ def save_res(trained_agent, stats, res, cfg, suffix=""):
 
 def save(agent, replay_buffer: ReplayBuffer, episode, config):
     os.makedirs("models", exist_ok=True)
-    run_name = f"{config.env_id}_seed{config.seed}"
+    run_name = f"{config.env_id}_seed_{config.seed}"
     filename = f"models/{run_name}_episode{episode}"
 
     to_save = dataclasses.asdict(config)
