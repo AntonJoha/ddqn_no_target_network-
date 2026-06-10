@@ -136,7 +136,7 @@ class DDQNAgent:
         with torch.no_grad():
             next_actions = self.policy_net(next_states_t).argmax(dim=1, keepdim=True)
             next_q = None
-            if self.use_target_network and self.target_net is not None:
+            if self.use_target_network:
                 next_q = self.target_net(next_states_t).gather(1, next_actions).squeeze(1)
             else:
                 next_q = self.policy_net(next_states_t).gather(1, next_actions).squeeze(1)
