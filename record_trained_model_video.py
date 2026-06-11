@@ -12,7 +12,7 @@ from ddqn_lunar_lander import QNetwork, device, set_seed
 from util import DDQNConfig
 
 
-def _load_config(config_path: Path | None, model_path: Path, cli_overrides: dict) -> DDQNConfig:
+def load_config(config_path: Path | None, model_path: Path, cli_overrides: dict[str, object]) -> DDQNConfig:
     candidate = config_path or model_path.with_suffix(".json")
     raw_config: dict[str, object] = {}
     if candidate.exists():
@@ -27,7 +27,7 @@ def _load_config(config_path: Path | None, model_path: Path, cli_overrides: dict
     return config
 
 
-def _load_policy(model_path: Path, config: DDQNConfig, state_dim: int, action_dim: int) -> QNetwork:
+def load_policy(model_path: Path, config: DDQNConfig, state_dim: int, action_dim: int) -> QNetwork:
     policy = QNetwork(state_dim, action_dim, config.hidden_dim).to(device)
     state_dict = torch.load(model_path, map_location=device)
     policy.load_state_dict(state_dict)
@@ -35,7 +35,7 @@ def _load_policy(model_path: Path, config: DDQNConfig, state_dim: int, action_di
     return policy
 
 
-def _parse_args() -> argparse.Namespace:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Record a trained DDQN rollout as video")
     parser.add_argument("--model-path", type=Path, required=True, help="Path to a trained .pth checkpoint")
     parser.add_argument(
@@ -55,8 +55,8 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    args = _parse_args()
-    config = _load_config(
+    args = parse_args()
+    config = load_config(
         args.config_path,
         args.model_path,
         {
@@ -70,23 +70,31 @@ def main() -> None:
     set_seed(config.seed)
 
     env = gym.make(config.env_id, render_mode="rgb_array")
-    env.metadata["render_fps"] = args.fps
-    env.action_space.seed(config.seed)
+    rollout_seed = int(np.uint32(config.seed if config.seed is not None else 0))
+    if not isinstance(env.observation_space, gym.spaces.Box) or not isinstance(
+        env.action_space, gym.spaces.Discrete
+    ):
+        raise TypeError("Only Box observation spaces and Discrete action spaces are supported.")
+
+    env.unwrapped.metadata["render_fps"] = args.fps
+    env.action_space.seed(rollout_seed)
+    video_name_prefix = args.output_name or args.model_path.stem
     env = RecordVideo(
         env,
         video_folder=str(args.output_dir),
-        name_prefix=args.output_name or args.model_path.stem,
+        name_prefix=video_name_prefix,
         episode_trigger=lambda _episode_id: True,
     )
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
-    policy = _load_policy(args.model_path, config, state_dim, action_dim)
+    policy = load_policy(args.model_path, config, state_dim, action_dim)
 
     rewards: list[float] = []
     try:
         for episode in range(args.episodes):
-            state, _ = env.reset(seed=(config.seed + episode) % (2**32 - 1))
+            episode_seed = int(np.uint32(rollout_seed + episode))
+            state, _ = env.reset(seed=episode_seed)
             episode_reward = 0.0
             for _ in range(config.max_steps):
                 state_t = torch.as_tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
@@ -101,10 +109,14 @@ def main() -> None:
     finally:
         env.close()
 
-    video_files = sorted(args.output_dir.glob(f"{args.output_name or args.model_path.stem}*.mp4"))
+    video_files = sorted(
+        path
+        for path in args.output_dir.glob(f"{video_name_prefix}*")
+        if path.suffix.lower() in {".mp4", ".webm", ".avi"}
+    )
     if video_files:
         print(f"Video saved to: {video_files[-1]}")
-    print(f"Mean reward: {float(np.mean(rewards)):.2f}")
+    print(f"Mean reward: {np.mean(rewards):.2f}")
 
 
 if __name__ == "__main__":
