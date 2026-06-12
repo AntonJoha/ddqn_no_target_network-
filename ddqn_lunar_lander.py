@@ -36,6 +36,7 @@ def make_activation(name: str) -> nn.Module:
 class QNetwork(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 128, activation: str = "tgelu"):
         super().__init__()
+        # Use a fresh activation module for each hidden layer so TGeLU keeps layer-local state.
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
             make_activation(activation),
