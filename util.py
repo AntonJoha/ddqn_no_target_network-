@@ -33,7 +33,7 @@ class DDQNConfig:
     eval_episodes: int = 10
     eval_seed_offset: int = 100_000
     render: bool = False
-    target_network_countdown: int = 25  # Episodes before dropping the target network; < 0 keeps it on.
+    target_network_countdown: int = 25  # Episodes before dropping the target network; decremented once per episode.
     lr_factor: float = 2
     lr_lower: float = 0.0001
     save_after: int=50
@@ -77,7 +77,7 @@ def parse_args() -> DDQNConfig:
         "--target-network-countdown",
         type=int,
         default=25,
-        help="Episodes before dropping the target network; use 0 for DQN and <0 to keep it on.",
+        help="Episodes before dropping the target network; decremented once per episode. Use 0 for DQN and <0 to keep it on.",
     )
     parser.add_argument("--replay-buffer-path", type=str, default=None)
     args = parser.parse_args()

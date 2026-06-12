@@ -37,7 +37,7 @@ def make_activation(name: str) -> nn.Module:
 class QNetwork(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 128, activation: str = "tgelu"):
         super().__init__()
-        # Use a fresh module per hidden layer; TGeLU stores thresholds on the module itself.
+        # Use a fresh module per hidden layer; TGeLU keeps layer-specific thresholds while ReLU stays stateless.
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
             make_activation(activation),
