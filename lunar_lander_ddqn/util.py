@@ -17,6 +17,7 @@ def state_dict_not_equal(sd1, sd2):
 @dataclass
 class DDQNConfig:
     env_id: str = "LunarLander-v3"
+    activation: str = "tgelu"
     episodes: int = 5000
     max_steps: int = 1000
     gamma: float = 0.99
@@ -49,6 +50,13 @@ class DDQNConfig:
 def parse_args() -> DDQNConfig:
     parser = argparse.ArgumentParser(description="Standard DDQN for LunarLander")
     parser.add_argument("--env-id", type=str, default="LunarLander-v3")
+    parser.add_argument(
+        "--activation",
+        type=str,
+        choices=("tgelu", "relu"),
+        default="tgelu",
+        help="Hidden-layer activation function.",
+    )
     parser.add_argument("--episodes", type=int, default=500)
     parser.add_argument("--max-steps", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=64)
@@ -72,6 +80,7 @@ def parse_args() -> DDQNConfig:
     args = parser.parse_args()
     return DDQNConfig(
         env_id=args.env_id,
+        activation=args.activation,
         episodes=args.episodes,
         max_steps=args.max_steps,
         gamma=args.gamma,

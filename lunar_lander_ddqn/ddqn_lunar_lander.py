@@ -25,14 +25,23 @@ NOISE_DECAY_FACTOR = 0.95
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+def make_activation(name: str) -> nn.Module:
+    if name == "tgelu":
+        return TGeLU(TGELU_LEFT_THRESHOLD, TGELU_RIGHT_THRESHOLD, device=device)
+    if name == "relu":
+        return nn.ReLU()
+    raise ValueError(f"Unsupported activation: {name}")
+
+
 class QNetwork(nn.Module):
-    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 128):
+    def __init__(self, state_dim: int, action_dim: int, hidden_dim: int = 128, activation: str = "tgelu"):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
-            TGeLU(TGELU_LEFT_THRESHOLD, TGELU_RIGHT_THRESHOLD, device=device),
+            make_activation(activation),
             nn.Linear(hidden_dim, hidden_dim),
-            TGeLU(TGELU_LEFT_THRESHOLD, TGELU_RIGHT_THRESHOLD, device=device),
+            make_activation(activation),
             nn.Linear(hidden_dim, action_dim),
         )
 
@@ -98,10 +107,10 @@ class DDQNAgent:
         self.update_steps = 0
 
         self.target_network_countdown = config.target_network_countdown
-        self.use_target_network = config.target_network_countdown > 0
+        self.use_target_network = config.target_network_countdown != 0
 
-        self.policy_net = QNetwork(state_dim, action_dim, config.hidden_dim).to(device)
-        self.target_net = QNetwork(state_dim, action_dim, config.hidden_dim).to(device)
+        self.policy_net = QNetwork(state_dim, action_dim, config.hidden_dim, config.activation).to(device)
+        self.target_net = QNetwork(state_dim, action_dim, config.hidden_dim, config.activation).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
@@ -163,6 +172,8 @@ class DDQNAgent:
             group["magnitude"] = group["magnitude"] * NOISE_DECAY_FACTOR
 
     def update_target_network_countdown(self):
+        if self.target_network_countdown < 0:
+            return
         if self.use_target_network:
             self.target_network_countdown -= 1
             if self.target_network_countdown <= 0:
