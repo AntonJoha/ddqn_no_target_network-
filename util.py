@@ -33,7 +33,7 @@ class DDQNConfig:
     eval_episodes: int = 10
     eval_seed_offset: int = 100_000
     render: bool = False
-    target_network_countdown: int = 2500  # Episodes before dropping the target network; < 0 keeps it on.
+    target_network_countdown: int = 25  # Episodes before dropping the target network; < 0 keeps it on.
     lr_factor: float = 2
     lr_lower: float = 0.0001
     save_after: int=50
