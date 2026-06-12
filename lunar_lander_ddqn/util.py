@@ -34,7 +34,7 @@ class DDQNConfig:
     eval_episodes: int = 5
     eval_seed_offset: int = 100_000
     render: bool = False
-    target_network_countdown: int = 25
+    target_network_countdown: int = 25  # Episodes before dropping the target network; < 0 keeps it on.
     lr_decay_exponent: int = 2
     lr_lower: float = 0.0001
     reward_limit: float = 200.0
@@ -73,7 +73,12 @@ def parse_args() -> DDQNConfig:
     parser.add_argument("--eval-episodes", type=int, default=5)
     parser.add_argument("--eval-seed-offset", type=int, default=100_000)
     parser.add_argument("--render", action="store_true")
-    parser.add_argument("--target-network-countdown", type=int, default=25)
+    parser.add_argument(
+        "--target-network-countdown",
+        type=int,
+        default=25,
+        help="Episodes before dropping the target network; use 0 for DQN and <0 to keep it on.",
+    )
     parser.add_argument("--replay-buffer-path", type=str, default=None)
     parser.add_argument("--reward-limit", type=float, default=200.0)
     parser.add_argument("--reward-limit-count", type=int, default=100)
