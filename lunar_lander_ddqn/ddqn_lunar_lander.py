@@ -108,7 +108,8 @@ class DDQNAgent:
         self.update_steps = 0
 
         self.target_network_countdown = config.target_network_countdown
-        self.use_target_network = config.target_network_countdown != 0
+        self.keep_target_network = config.target_network_countdown < 0
+        self.use_target_network = config.target_network_countdown > 0
 
         self.policy_net = QNetwork(state_dim, action_dim, config.hidden_dim, config.activation).to(device)
         self.target_net = QNetwork(state_dim, action_dim, config.hidden_dim, config.activation).to(device)
@@ -147,7 +148,7 @@ class DDQNAgent:
         with torch.no_grad():
             next_policy_q = self.policy_net(next_states_t)
             next_actions = next_policy_q.argmax(dim=1, keepdim=True)
-            if self.use_target_network:
+            if self.keep_target_network or self.use_target_network:
                 next_q = self.target_net(next_states_t).gather(1, next_actions).squeeze(1)
             else:
                 next_q = next_policy_q.gather(1, next_actions).squeeze(1)
@@ -173,7 +174,7 @@ class DDQNAgent:
             group["magnitude"] = group["magnitude"] * NOISE_DECAY_FACTOR
 
     def update_target_network_countdown(self):
-        if self.target_network_countdown < 0:
+        if self.keep_target_network:
             return
         if self.use_target_network:
             self.target_network_countdown -= 1
